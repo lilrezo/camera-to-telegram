@@ -1,7 +1,0 @@
-[build]
-  # این خط می گوید که پوشه توابع Serverless کجاست
-  functions = "netlify/functions" 
-
-[build.environment]
-  # اگر Base Directory (پوشه اصلی) را در تنظیمات وارد نکردید، این خط را اضافه کنید
-  # PUBLISH = "telegram-camera"
